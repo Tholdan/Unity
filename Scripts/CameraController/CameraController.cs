@@ -19,32 +19,45 @@ public class HeightData
 {
     //Height the camera will be placed at the game start. (Positives height means the camera being upper the focus).
     public float initialHeight;
+    //Height the camera when the first person camera is active.
+    public float firstPersonHeight;
     //The maximum and minimum height the camera will be placed. (Without this the player will be able to move the camera height from -inf to inf.)
     public float maxDegreeRotation;
 }
 
 public class CameraController : MonoBehaviour {
-    //The gameobject the camera will follow.
-    public GameObject focus;
+    //PUBLIC VARS
+        //Float vars
+            //The speed the camera distance is changed using mouse scroll wheel.
+            public float scrollWheelSpeed;
+    
+        //Unity types vars
+            //The gameobject the camera will follow.
+            public GameObject focus;
+            //The meshRenderer that will be invisible when the first person camera is activated.
+            public MeshRenderer meshRenderer;
+            //All distance data class (initial distance, max distance, min distance)
+            public DistanceData distanceData;
+            //All height data class (initial height, max height, min height)
+            public HeightData heightData;
 
-    //The speed the camera distance is changed using mouse scroll wheel.
-    public float scrollWheelSpeed;
 
-    //All distance data class (initial distance, max distance, min distance)
-    public DistanceData distanceData;
+    //PRIVATE VARS
+        //Bool vars
+            private bool firstPersonCamera;
 
-    //All height data class (initial height, max height, min height)
-    public HeightData heightData;
+        //Float vars
+            private float currentDistance;
+            private float currentHeight;
+            private float currentX;
+            private float currentY;
+            private float maxHeightDegree;
+            private float minHeightDegree;
 
-    //Private vars used in the different functions.
-    private float currentDistance;
-    private float currentHeight;
-    private float currentX;
-    private float currentY;
-    private float maxHeightDegree;
-    private float minHeightDegree;
-    private Quaternion rotation;
-    private Rigidbody rb;
+        //Unity types vars
+            private Quaternion rotation;
+            private Rigidbody rb;
+            
     
     //Initialization
     void Start()
@@ -54,6 +67,7 @@ public class CameraController : MonoBehaviour {
         currentHeight = heightData.initialHeight;
         currentX = 0;
         currentY = 0;
+        firstPersonCamera = false;
         rotation = focus.transform.rotation;
 
         //Initializes the camera position behind the focus.
@@ -68,6 +82,54 @@ public class CameraController : MonoBehaviour {
     //Update is called once per frame
     void Update ()
     {
+        //Changes the camera type when the "FirstPersonCamera" button is pressed,
+        if (Input.GetButtonDown("First Person Camera"))
+            firstPersonCamera = !firstPersonCamera;
+
+        if (firstPersonCamera)
+            FirstPersonCamera();
+        else
+            ThirdPersonCamera();
+    }
+
+    // LateUpdate is called once per frame after Update
+    void LateUpdate ()
+    {
+        if (firstPersonCamera)
+        {
+            transform.position = focus.transform.position + new Vector3(0.0f, heightData.firstPersonHeight, 0.0f);
+            transform.rotation = Quaternion.Euler(-currentX, currentY, 0.0f);
+        }
+        else
+        {
+            //Gets the Quaternion of the focus rotation + mouse rotation.
+            rotation = focus.transform.rotation * Quaternion.Euler(currentX, currentY, 0.0f);
+            //Moves the camera to the right position.
+            transform.position = focus.transform.position + rotation * new Vector3(0.0f, currentHeight, -currentDistance);
+            //Unity function to make the camera look at the focus.
+            transform.LookAt(focus.transform.position + new Vector3(0.0f, heightData.firstPersonHeight, 0.0f));
+        }
+        
+    }
+
+    /// <summary>
+    /// First person camera system function.
+    /// </summary>
+    void FirstPersonCamera ()
+    {
+        //Makes the player invisible (deactivating the player renderer
+        UpdateMeshRenderer(false);
+        UpdateRotationAxis();
+    }
+
+    /// <summary>
+    /// Third person camera system function.
+    /// </summary>
+    void ThirdPersonCamera ()
+    {
+        //Makes the player visible (activating the player renderer).
+        UpdateMeshRenderer(true);
+
         //Changes the camera distance iwth the Mouse ScrollWheel axis and clamps it between two values (max & min).
         currentDistance += -Input.GetAxis("Mouse ScrollWheel") * scrollWheelSpeed * Time.deltaTime;
         currentDistance = Mathf.Clamp(currentDistance, distanceData.minDistance, distanceData.maxDistance);
@@ -75,27 +137,35 @@ public class CameraController : MonoBehaviour {
         //Gets the camera rotation axis while the left mouse button is pressed.
         if (Input.GetMouseButton(0))
         {
-            currentX += Input.GetAxis("Mouse X");
-            currentY += Input.GetAxis("Mouse Y");
+            UpdateRotationAxis();
         }
-        currentY = Mathf.Clamp(currentY, minHeightDegree, maxHeightDegree);
+        
         //Resets the X rotation when the left mouse button is released.
         if (Input.GetMouseButtonUp(0))
         {
-            currentX = 0;
+            currentY = 0;
         }
     }
 
-    // LateUpdate is called once per frame after Update
-    void LateUpdate ()
+    /// <summary>
+    /// Updates the currentX and currentY values using the vertical and horizontal mouse movement axis.
+    /// </summary>
+    void UpdateRotationAxis()
     {
-        //Gets the Quaternion of the focus rotation + mouse rotation.
-        rotation = focus.transform.rotation * Quaternion.Euler(currentY, currentX, 0.0f);
+        //When you rotate through the x axis what you are really doing is facing the camera up/down.
+        currentY += Input.GetAxis("Mouse X");
+        //When you rotate through the y axis what you are really doing is facing the camera left/right.
+        currentX += Input.GetAxis("Mouse Y");
+        //The currentY value will be always a value between minHeightDegree and maxHeightDegree using clamp.
+        currentX = Mathf.Clamp(currentX, minHeightDegree, maxHeightDegree);
+    }
 
-        //Moves the camera to the right position.
-        transform.position = focus.transform.position + rotation * new Vector3(0.0f, currentHeight, -currentDistance);
-        
-        //Unity function to make the camera look at the focus.
-        transform.LookAt(focus.transform);
+    /// <summary>
+    /// Makes the gameObject visible or invisible depending on the visible bool var. 
+    /// </summary>
+    /// <param name="visible"></param>
+    void UpdateMeshRenderer(bool visible)
+    {
+        meshRenderer.enabled = visible;
     }
 }

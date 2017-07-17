@@ -98,7 +98,7 @@ public class CameraController : MonoBehaviour {
         if (firstPersonCamera)
         {
             transform.position = focus.transform.position + new Vector3(0.0f, heightData.firstPersonHeight, 0.0f);
-            transform.rotation = Quaternion.Euler(-currentX, currentY, 0.0f);
+            transform.rotation = focus.transform.rotation * Quaternion.Euler(-currentX, 0.0f, 0.0f);
         }
         else
         {
@@ -119,6 +119,7 @@ public class CameraController : MonoBehaviour {
     {
         //Makes the player invisible (deactivating the player renderer
         UpdateMeshRenderer(false);
+        //Gets the camera rotation axis
         UpdateRotationAxis();
     }
 
@@ -152,8 +153,11 @@ public class CameraController : MonoBehaviour {
     /// </summary>
     void UpdateRotationAxis()
     {
-        //When you rotate through the x axis what you are really doing is facing the camera up/down.
-        currentY += Input.GetAxis("Mouse X");
+        if (!firstPersonCamera)
+        {
+            //When you rotate through the x axis what you are really doing is facing the camera up/down.
+            currentY += Input.GetAxis("Mouse X");
+        }
         //When you rotate through the y axis what you are really doing is facing the camera left/right.
         currentX += Input.GetAxis("Mouse Y");
         //The currentY value will be always a value between minHeightDegree and maxHeightDegree using clamp.
